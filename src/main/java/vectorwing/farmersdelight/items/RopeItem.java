@@ -9,6 +9,8 @@ import net.minecraft.world.World;
 
 import javax.annotation.Nullable;
 
+import net.minecraft.item.Item.Properties;
+
 public class RopeItem extends FuelBlockItem
 {
 	public RopeItem(Block blockIn, Properties properties) {
@@ -17,18 +19,18 @@ public class RopeItem extends FuelBlockItem
 
 	@Override
 	@Nullable
-	public BlockItemUseContext getBlockItemUseContext(BlockItemUseContext context) {
-		BlockPos blockpos = context.getPos();
-		World world = context.getWorld();
-		BlockState blockstate = world.getBlockState(blockpos);
+	public BlockItemUseContext updatePlacementContext(BlockItemUseContext context) {
+		BlockPos blockpos = context.getClickedPos();
+		World world = context.getLevel();
+		BlockState state = world.getBlockState(blockpos);
 		Block block = this.getBlock();
 
-		if (blockstate.getBlock() != block) {
+		if (state.getBlock() != block) {
 			return context;
 		} else {
 			Direction direction;
-			if (context.hasSecondaryUseForPlayer()) {
-				direction = context.getFace();
+			if (context.isSecondaryUseActive()) {
+				direction = context.getClickedFace();
 			} else {
 				direction = Direction.DOWN;
 			}
@@ -37,10 +39,10 @@ public class RopeItem extends FuelBlockItem
 			BlockPos.Mutable blockpos$mutable = (new BlockPos.Mutable(blockpos.getX(), blockpos.getY(), blockpos.getZ())).move(direction);
 
 			while (i < 256) {
-				blockstate = world.getBlockState(blockpos$mutable);
-				if (blockstate.getBlock() != this.getBlock()) {
-					if (blockstate.isReplaceable(context)) {
-						return BlockItemUseContext.func_221536_a(context, blockpos$mutable, direction);
+				state = world.getBlockState(blockpos$mutable);
+				if (state.getBlock() != this.getBlock()) {
+					if (state.canBeReplaced(context)) {
+						return BlockItemUseContext.at(context, blockpos$mutable, direction);
 					}
 					break;
 				}
@@ -58,7 +60,7 @@ public class RopeItem extends FuelBlockItem
 	}
 
 	@Override
-	protected boolean checkPosition() {
+	protected boolean mustSurvive() {
 		return false;
 	}
 }

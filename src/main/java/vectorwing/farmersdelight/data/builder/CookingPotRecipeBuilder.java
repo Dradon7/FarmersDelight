@@ -24,39 +24,31 @@ import java.util.function.Consumer;
 @ParametersAreNonnullByDefault
 public class CookingPotRecipeBuilder
 {
-	public static final int DEFAULT_COOKING_TIME = 200;
-
+	private final List<Ingredient> ingredients = Lists.newArrayList();
 	private final Item result;
 	private final int count;
-	private final List<Ingredient> ingredients = Lists.newArrayList();
-	private final Item container;
 	private final int cookingTime;
+	private final float experience;
+	private final Item container;
 
-	private CookingPotRecipeBuilder(IItemProvider resultIn, int count, @Nullable IItemProvider container, int cookingTime) {
+	private CookingPotRecipeBuilder(IItemProvider resultIn, int count, int cookingTime, float experience, @Nullable IItemProvider container) {
 		this.result = resultIn.asItem();
 		this.count = count;
-		this.container = container != null ? container.asItem() : null;
 		this.cookingTime = cookingTime;
+		this.experience = experience;
+		this.container = container != null ? container.asItem() : null;
 	}
 
-	public static CookingPotRecipeBuilder cookingRecipe(IItemProvider mainResult, int count) {
-		return new CookingPotRecipeBuilder(mainResult, count, null, DEFAULT_COOKING_TIME);
+	public static CookingPotRecipeBuilder cookingPotRecipe(IItemProvider mainResult, int count, int cookingTime, float experience) {
+		return new CookingPotRecipeBuilder(mainResult, count, cookingTime, experience, null);
 	}
 
-	public static CookingPotRecipeBuilder cookingRecipe(IItemProvider mainResult, int count, IItemProvider container) {
-		return new CookingPotRecipeBuilder(mainResult, count, container, DEFAULT_COOKING_TIME);
-	}
-
-	public static CookingPotRecipeBuilder cookingRecipe(IItemProvider mainResult, int count, int cookingTime) {
-		return new CookingPotRecipeBuilder(mainResult, count, null, cookingTime);
-	}
-
-	public static CookingPotRecipeBuilder cookingRecipe(IItemProvider mainResult, int count, IItemProvider container, int cookingTime) {
-		return new CookingPotRecipeBuilder(mainResult, count, container, cookingTime);
+	public static CookingPotRecipeBuilder cookingPotRecipe(IItemProvider mainResult, int count, int cookingTime, float experience, IItemProvider container) {
+		return new CookingPotRecipeBuilder(mainResult, count, cookingTime, experience, container);
 	}
 
 	public CookingPotRecipeBuilder addIngredient(ITag<Item> tagIn) {
-		return this.addIngredient(Ingredient.fromTag(tagIn));
+		return this.addIngredient(Ingredient.of(tagIn));
 	}
 
 	public CookingPotRecipeBuilder addIngredient(IItemProvider itemIn) {
@@ -65,7 +57,7 @@ public class CookingPotRecipeBuilder
 
 	public CookingPotRecipeBuilder addIngredient(IItemProvider itemIn, int quantity) {
 		for (int i = 0; i < quantity; ++i) {
-			this.addIngredient(Ingredient.fromItems(itemIn));
+			this.addIngredient(Ingredient.of(itemIn));
 		}
 		return this;
 	}
@@ -96,7 +88,7 @@ public class CookingPotRecipeBuilder
 	}
 
 	public void build(Consumer<IFinishedRecipe> consumerIn, ResourceLocation id) {
-		consumerIn.accept(new CookingPotRecipeBuilder.Result(id, this.result, this.count, this.ingredients, this.container, this.cookingTime));
+		consumerIn.accept(new CookingPotRecipeBuilder.Result(id, this.result, this.count, this.ingredients, this.cookingTime, this.experience, this.container));
 	}
 
 	public static class Result implements IFinishedRecipe
@@ -105,24 +97,26 @@ public class CookingPotRecipeBuilder
 		private final List<Ingredient> ingredients;
 		private final Item result;
 		private final int count;
-		private final Item container;
 		private final int cookingTime;
+		private final float experience;
+		private final Item container;
 
-		public Result(ResourceLocation idIn, Item resultIn, int countIn, List<Ingredient> ingredientsIn, @Nullable Item containerIn, int cookingTimeIn) {
+		public Result(ResourceLocation idIn, Item resultIn, int countIn, List<Ingredient> ingredientsIn, int cookingTimeIn, float experienceIn, @Nullable Item containerIn) {
 			this.id = idIn;
+			this.ingredients = ingredientsIn;
 			this.result = resultIn;
 			this.count = countIn;
-			this.ingredients = ingredientsIn;
-			this.container = containerIn;
 			this.cookingTime = cookingTimeIn;
+			this.experience = experienceIn;
+			this.container = containerIn;
 		}
 
 		@Override
-		public void serialize(JsonObject json) {
+		public void serializeRecipeData(JsonObject json) {
 			JsonArray arrayIngredients = new JsonArray();
 
 			for (Ingredient ingredient : this.ingredients) {
-				arrayIngredients.add(ingredient.serialize());
+				arrayIngredients.add(ingredient.toJson());
 			}
 			json.add("ingredients", arrayIngredients);
 
@@ -138,28 +132,31 @@ public class CookingPotRecipeBuilder
 				objectContainer.addProperty("item", ForgeRegistries.ITEMS.getKey(this.container).toString());
 				json.add("container", objectContainer);
 			}
+			if (this.experience > 0) {
+				json.addProperty("experience", this.experience);
+			}
 			json.addProperty("cookingtime", this.cookingTime);
 		}
 
 		@Override
-		public ResourceLocation getID() {
+		public ResourceLocation getId() {
 			return this.id;
 		}
 
 		@Override
-		public IRecipeSerializer<?> getSerializer() {
+		public IRecipeSerializer<?> getType() {
 			return CookingPotRecipe.SERIALIZER;
 		}
 
 		@Nullable
 		@Override
-		public JsonObject getAdvancementJson() {
+		public JsonObject serializeAdvancement() {
 			return null;
 		}
 
 		@Nullable
 		@Override
-		public ResourceLocation getAdvancementID() {
+		public ResourceLocation getAdvancementId() {
 			return null;
 		}
 	}

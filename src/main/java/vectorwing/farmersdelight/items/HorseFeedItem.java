@@ -25,6 +25,7 @@ import net.minecraftforge.fml.common.Mod;
 import vectorwing.farmersdelight.FarmersDelight;
 import vectorwing.farmersdelight.registry.ModItems;
 import vectorwing.farmersdelight.registry.ModParticleTypes;
+import vectorwing.farmersdelight.setup.Configuration;
 import vectorwing.farmersdelight.utils.MathUtils;
 import vectorwing.farmersdelight.utils.TextUtils;
 import vectorwing.farmersdelight.utils.tags.ModTags;
@@ -35,8 +36,8 @@ import java.util.List;
 public class HorseFeedItem extends Item
 {
 	public static final List<EffectInstance> EFFECTS = Lists.newArrayList(
-			new EffectInstance(Effects.SPEED, 6000, 1),
-			new EffectInstance(Effects.JUMP_BOOST, 6000, 0));
+			new EffectInstance(Effects.MOVEMENT_SPEED, 6000, 1),
+			new EffectInstance(Effects.JUMP, 6000, 0));
 
 	public HorseFeedItem(Properties properties) {
 		super(properties);
@@ -56,18 +57,18 @@ public class HorseFeedItem extends Item
 				LivingEntity entity = (LivingEntity) target;
 				boolean isTameable = entity instanceof AbstractHorseEntity;
 
-				if (entity.isAlive() && (!isTameable || ((AbstractHorseEntity) entity).isTame()) && itemStack.getItem().equals(ModItems.HORSE_FEED.get())) {
+				if (entity.isAlive() && (!isTameable || ((AbstractHorseEntity) entity).isTamed()) && itemStack.getItem().equals(ModItems.HORSE_FEED.get())) {
 					entity.setHealth(entity.getMaxHealth());
 					for (EffectInstance effect : EFFECTS) {
-						entity.addPotionEffect(new EffectInstance(effect));
+						entity.addEffect(new EffectInstance(effect));
 					}
-					entity.world.playSound(null, target.getPosition(), SoundEvents.ENTITY_HORSE_EAT, SoundCategory.PLAYERS, 0.8F, 0.8F);
+					entity.level.playSound(null, target.blockPosition(), SoundEvents.HORSE_EAT, SoundCategory.PLAYERS, 0.8F, 0.8F);
 
 					for (int i = 0; i < 5; ++i) {
 						double d0 = MathUtils.RAND.nextGaussian() * 0.02D;
 						double d1 = MathUtils.RAND.nextGaussian() * 0.02D;
 						double d2 = MathUtils.RAND.nextGaussian() * 0.02D;
-						entity.world.addParticle(ModParticleTypes.STAR_PARTICLE.get(), entity.getPosXRandom(1.0D), entity.getPosYRandom() + 0.5D, entity.getPosZRandom(1.0D), d0, d1, d2);
+						entity.level.addParticle(ModParticleTypes.STAR.get(), entity.getRandomX(1.0D), entity.getRandomY() + 0.5D, entity.getRandomZ(1.0D), d0, d1, d2);
 					}
 
 					if (!player.isCreative()) {
@@ -82,33 +83,37 @@ public class HorseFeedItem extends Item
 	}
 
 	@Override
-	public void addInformation(ItemStack stack, @Nullable World worldIn, List<ITextComponent> tooltip, ITooltipFlag flagIn) {
-		IFormattableTextComponent whenFeeding = TextUtils.getTranslation("tooltip.horse_feed.when_feeding");
-		tooltip.add(whenFeeding.mergeStyle(TextFormatting.GRAY));
+	public void appendHoverText(ItemStack stack, @Nullable World worldIn, List<ITextComponent> tooltip, ITooltipFlag flagIn) {
+		if (!Configuration.FOOD_EFFECT_TOOLTIP.get()) {
+			return;
+		}
 
-		for (EffectInstance effectinstance : EFFECTS) {
+		IFormattableTextComponent textWhenFeeding = TextUtils.getTranslation("tooltip.horse_feed.when_feeding");
+		tooltip.add(textWhenFeeding.withStyle(TextFormatting.GRAY));
+
+		for (EffectInstance effectInstance : EFFECTS) {
 			IFormattableTextComponent effectDescription = new StringTextComponent(" ");
-			IFormattableTextComponent effectName = new TranslationTextComponent(effectinstance.getEffectName());
-			effectDescription.appendSibling(effectName);
-			Effect effect = effectinstance.getPotion();
+			IFormattableTextComponent effectName = new TranslationTextComponent(effectInstance.getDescriptionId());
+			effectDescription.append(effectName);
+			Effect effect = effectInstance.getEffect();
 
-			if (effectinstance.getAmplifier() > 0) {
-				effectDescription.appendString(" ").appendSibling(new TranslationTextComponent("potion.potency." + effectinstance.getAmplifier()));
+			if (effectInstance.getAmplifier() > 0) {
+				effectDescription.append(" ").append(new TranslationTextComponent("potion.potency." + effectInstance.getAmplifier()));
 			}
 
-			if (effectinstance.getDuration() > 20) {
-				effectDescription.appendString(" (").appendString(EffectUtils.getPotionDurationString(effectinstance, 1.0F)).appendString(")");
+			if (effectInstance.getDuration() > 20) {
+				effectDescription.append(" (").append(EffectUtils.formatDuration(effectInstance, 1.0F)).append(")");
 			}
 
-			tooltip.add(effectDescription.mergeStyle(effect.getEffectType().getColor()));
+			tooltip.add(effectDescription.withStyle(effect.getCategory().getTooltipFormatting()));
 		}
 	}
 
 	@Override
-	public ActionResultType itemInteractionForEntity(ItemStack stack, PlayerEntity playerIn, LivingEntity target, Hand hand) {
+	public ActionResultType interactLivingEntity(ItemStack stack, PlayerEntity playerIn, LivingEntity target, Hand hand) {
 		if (target instanceof HorseEntity) {
 			HorseEntity horse = (HorseEntity) target;
-			if (horse.isAlive() && horse.isTame()) {
+			if (horse.isAlive() && horse.isTamed()) {
 				return ActionResultType.SUCCESS;
 			}
 		}

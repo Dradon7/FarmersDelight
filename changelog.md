@@ -1,5 +1,155 @@
 # Changelog
 
+## 0.5.4
+
+### Updates
+- Updated zh_CN translation (thanks, WuzgXY-GitHub!)
+
+### Fixes
+- Fix duplication bug when adding stacks into a Skillet;
+- Fix Cooking Pot not updating comparator signals for non-input slot changes;
+
+## 0.5.3
+
+### Updates
+- Mutton Wrap no longer needs milk, and is made with an Onion instead of a Tomato;
+- Cooking Pot is easier to mine by hand;
+- Updated de_DE translation (thanks, DaLumma!);
+
+### Fixes
+- Fix crashes related to calling unbound tags on ItemTooltipEvent;
+  - This means any items in `comfort_foods` will work, but won't have an effect tooltip to them;
+- Fix Canvas Sign mixin not being marked as client;
+
+## 0.5.2
+
+### Additions
+- Added client config for toggling extra tooltips on Farmer's Delight foods and drinks (true by default);
+
+### Updates
+- Foods now display their provided effect in their tooltip;
+  - This also applies to any foods in the `comfort_foods` tag, for now;
+- Food portions, such as cabbage leaves and meat cuts, are now fast to eat;
+- Reduced the length of Comfort from `comfort_foods` from 5 to 2 minutes;
+- Updated ja_JP translation;
+- Updated ko_KR translation;
+- Updated zh_CN translation;
+
+### Fixes
+- Fix Nourishment's hunger overlay blocking AppleSkin's saturation overlay;
+- Fix items being used twice when adding them to a Stove;
+- Fix Stoves cancelling the normal usage of invalid items when aimed at them;
+- Fix inconsistencies with lit/unlit Stove textures;
+- Fix Skillets resetting their cooking time when trying to add a cookable item and failing;
+
+## 0.5.1
+- This update rolls back recent package changes which caused add-ons and integrations to break.
+
+### Additions
+  - Added JEI information tabs to Knives and Ham;
+  - Added `mushroom_colony_growable_on` tag: blocks that allow Mushroom Colonies to continue growing until mature;
+    - This tag DOES NOT make the block form colonies! Only Rich Soil can do so for now;
+  - Added compatibility with Create's Potato Cannon!
+    - Cabbage packs a punch, but is cumbersome to reload;
+    - Tomatoes are light, rapid-fire and embarassing to get hit by;
+    - Onions are mostly the same as potatoes;
+    - Whole pies work like the Pumpkin Pie. Their slices (and Pumpkin Slices) can be fired rapidly instead.
+### Updates
+  - Cooking Pot and Skillet are a bit easier to break by hand;
+  - Melon Popsicles now douse flames when consumed, instead of giving Fire Resistance;
+  - Updated ja_JP translation (thanks, CKenJa!)
+### Fixes
+  - Fix Skillet not saving total cooking times, making it cook items rapidly on world reload;
+  - Fix a class mismatch that broke Industrial Foregoing's Hydroponic Bed integration.
+
+## 0.5.0
+
+### Breaking changes (BACKUP YOUR SAVES!)
+- This update causes a few breaking changes. Follow this link for more info:
+- https://github.com/vectorwing/FarmersDelight/wiki/0.5-Breaking-Changes
+
+### Additions
+- **Skillet** - A portable food-cooking utensil with a powerful swing!
+    - Can be placed as a block (shift-use) or operated from your hand, if near a heat source;
+        - Being on fire counts as a heat source when handheld!
+    - Acts as a heavyweight melee weapon, packing extra knockback, but with very slow swings;
+    - 1 second slower than a Smoker by default, but cooks progressively faster when enchanted with **Fire Aspect**;
+    - Cannot interact with Hoppers as of now. This is pending a thinking-over later.
+- New foods:
+    - **Bacon and Eggs** - Plenty of cholesterol for a fresh morning!
+- New drinks:
+    - **Apple Cider** - A warm and simple drink to toughen you up with **Absorption** for a minute;
+    - **Melon Juice** - Refreshing and healthy! **Heals 1 heart** instantly;
+- **Canvas Rug** - A fuzzy, rudimentary floor cover made of Canvas;
+- **Canvas Signs** - Painterly signs with a **dyeable background** and a smooth writing surface!
+    - The sign is "uncolored" when first crafted, using the natural beige tone of Canvas;
+    - Can be crafted with any normal dye to color its background;
+    - Text can be dyed as usual by right-clicking the sign with a dye item;
+    - Signs with a "dark" background color start off with white text. This can be customized in the config.
+
+### Updates
+- All workstations have been **optimized** for better performance, and now cache the previous recipes when processing;
+- Pie and cake slices had their Speed buff shortened to 30 seconds; 
+- Cooking Pot:
+    - You now get **experience points** from cooking!
+        - Just like a Furnace, retrieving meals from the output slot will reward you the experience stored so far;
+        - Mining the pot will also release all stored experience;
+    - The pot can now be heated **through** `heat_conductors`, up to 1 block of space:
+        - By default, this applies to the metallic Hopper, letting you heat your food AND extract it at the same time!
+        - Built-in support for Create's Chutes, and 1.17 Copper Blocks are planned to be tagged as such in the future;
+    - You can now hang the pot from a **handle**!
+        - Place the pot from under a block, and it will display a handle;
+        - If a handle is shown, the pot won't display a tray at all;
+        - You can toggle between tray and handle by sneak-right-clicking the pot.
+    - The pot emits a new, custom steam particle when boiling;
+    - The boiling sound becomes more "soupy" when the pot is storing a meal;
+- Stove:
+    - You can now use **Fire Charges** to light them;
+    - You can now use any item with a "shovel" ToolType to extinguish them;
+    - Cookable food can be placed on a Stove that isn't lit;
+- Cutting Board:
+    - Cutting recipes can now define a **drop chance** for each output item!
+        - Chance is optional, and outputs are 100% guaranteed by default;
+        - **Fortune** increases chances, if the given tool is enchanted with it. This bonus can be tweaked in the configs;
+        - In FD, chances have been given to some flower-cutting and salvaging recipes;
+        - Check the GitHub wiki to see how the new syntax works.
+    - Updated JEI recipe displays to have dynamic outputs, and to also show drop chances;
+    - Carved tools have been mirrored, so as to avoid cutting across the handle gap;
+    - New cutting recipes: Wild Crops, Leather Horse Armor
+- Knives:
+    - Reduced swing speeds slightly;
+- Rice:
+    - The old, legacy form of the Rice Crop (`tall_rice_crop`) has been **permanently removed** in favor of the new one (`rice_upper_crop`). See the **Breaking Changes** for more info;
+    - The Rice crop now only gives 1 panicle at a time, and bone meal is a bit less effective. This was done to control its excessive supply a bit more;
+
+### Fixes
+- Fix circular texture reference in some model templates, which caused lots of log spam with CTM;
+- Fix most sounds being set to `stream` when they shouldn't be;
+- Fix mugs rendering incorrectly when in the off-hand;
+- Fix Mushroom Colonies allowing the usage of Bone Meal on some growth stages;
+- Fix ToolIngredient checking a stale list of ingredients, making Tinker's Construct tools always match;
+
+### Translation Updates
+- (NEW!) ca_ES (thanks, VerdaPegasus!)
+- de_DE (thanks, DaLumma!)
+- fr_FR (thanks, BlackJamesYT!)
+- ko_KR (thanks, qkrehf2!)
+- pl_pl (thanks, jogurciQ!)
+- ru_ru (thanks, Dimagreg!)
+- zh_cn (thanks, WuzgXY-GitHub!)
+
+## 0.4.6
+- Added Serene Seasons **fertility** tags to all crops on the mod's end;
+- Added new Cutting Board recipes: cutting flowers for dyes!
+  - Small flowers can be cut to yield twice as much dye per usual;
+  - Large flowers not included, though they may be in a future update;
+- The lower half of Rice crops is now a bit sturdier, and cannot be instamined, making upper-half harvesting more convenient;
+- Updated CraftTweaker integration (courtesy of eutro!):
+  - Recipe Handlers have been added for Cooking Pot and Cutting Board recipes, so ingredient replacements are supported;
+- Updated some item textures:
+  - Rice Panicle has a new look! A bit less like corn, a lot more like real life;
+  - Minor shading tweaks to a few other items;
+
 ## 0.4.5
 - Fixes Baskets having their sides vanish when next to a short block;
 - Fixes water render in waterlogged Baskets.

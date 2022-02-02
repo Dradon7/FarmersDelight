@@ -5,14 +5,13 @@ import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.inventory.InventoryHelper;
+import net.minecraft.inventory.Inventory;
 import net.minecraft.item.*;
 import net.minecraft.item.crafting.CampfireCookingRecipe;
 import net.minecraft.particles.ParticleTypes;
 import net.minecraft.state.BooleanProperty;
 import net.minecraft.state.StateContainer;
 import net.minecraft.state.properties.BlockStateProperties;
-import net.minecraft.stats.Stats;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.*;
 import net.minecraft.util.math.BlockPos;
@@ -21,9 +20,11 @@ import net.minecraft.world.IBlockReader;
 import net.minecraft.world.World;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+import net.minecraftforge.common.ToolType;
 import vectorwing.farmersdelight.registry.ModSounds;
 import vectorwing.farmersdelight.registry.ModTileEntityTypes;
 import vectorwing.farmersdelight.tile.StoveTileEntity;
+import vectorwing.farmersdelight.utils.ItemUtils;
 import vectorwing.farmersdelight.utils.MathUtils;
 
 import javax.annotation.Nullable;
@@ -40,38 +41,54 @@ public class StoveBlock extends HorizontalBlock
 	}
 
 	@Override
-	public ActionResultType onBlockActivated(BlockState state, World worldIn, BlockPos pos, PlayerEntity player, Hand handIn, BlockRayTraceResult hit) {
-		ItemStack itemstack = player.getHeldItem(handIn);
-		Item usedItem = itemstack.getItem();
-		if (state.get(LIT)) {
-			TileEntity tile = worldIn.getTileEntity(pos);
-			if (tile instanceof StoveTileEntity) {
-				StoveTileEntity stovetileentity = (StoveTileEntity) tile;
-				Optional<CampfireCookingRecipe> optional = stovetileentity.findMatchingRecipe(itemstack);
-				if (optional.isPresent()) {
-					if (!worldIn.isRemote && !stovetileentity.isStoveBlockedAbove() && stovetileentity.addItem(player.abilities.isCreativeMode ? itemstack.copy() : itemstack, optional.get().getCookTime())) {
-						player.addStat(Stats.INTERACT_WITH_CAMPFIRE);
-						return ActionResultType.SUCCESS;
-					}
-					return ActionResultType.CONSUME;
-				} else {
-					if (usedItem instanceof ShovelItem) {
-						extinguish(state, worldIn, pos);
-						return ActionResultType.SUCCESS;
-					} else if (usedItem == Items.WATER_BUCKET) {
-						extinguish(state, worldIn, pos);
-						player.setHeldItem(handIn, new ItemStack(Items.BUCKET));
-						return ActionResultType.SUCCESS;
-					}
+	public ActionResultType use(BlockState state, World worldIn, BlockPos pos, PlayerEntity player, Hand handIn, BlockRayTraceResult hit) {
+		ItemStack heldStack = player.getItemInHand(handIn);
+		Item heldItem = heldStack.getItem();
+
+		if (state.getValue(LIT)) {
+			if (heldStack.getToolTypes().contains(ToolType.SHOVEL)) {
+				extinguish(state, worldIn, pos);
+				heldStack.hurtAndBreak(1, player, action -> action.broadcastBreakEvent(handIn));
+				return ActionResultType.SUCCESS;
+			} else if (heldItem == Items.WATER_BUCKET) {
+				if (!worldIn.isClientSide()) {
+					worldIn.playSound(null, pos, SoundEvents.GENERIC_EXTINGUISH_FIRE, SoundCategory.BLOCKS, 1.0F, 1.0F);
 				}
+				extinguish(state, worldIn, pos);
+				if (!player.isCreative()) {
+					player.setItemInHand(handIn, new ItemStack(Items.BUCKET));
+				}
+				return ActionResultType.SUCCESS;
 			}
 		} else {
-			if (itemstack.getItem() instanceof FlintAndSteelItem) {
-				worldIn.playSound(player, pos, SoundEvents.ITEM_FLINTANDSTEEL_USE, SoundCategory.BLOCKS, 1.0F, MathUtils.RAND.nextFloat() * 0.4F + 0.8F);
-				worldIn.setBlockState(pos, state.with(BlockStateProperties.LIT, Boolean.TRUE), 11);
-				itemstack.damageItem(1, player, action -> action.sendBreakAnimation(handIn));
-
+			if (heldItem instanceof FlintAndSteelItem) {
+				worldIn.playSound(player, pos, SoundEvents.FLINTANDSTEEL_USE, SoundCategory.BLOCKS, 1.0F, MathUtils.RAND.nextFloat() * 0.4F + 0.8F);
+				worldIn.setBlock(pos, state.setValue(BlockStateProperties.LIT, Boolean.TRUE), 11);
+				heldStack.hurtAndBreak(1, player, action -> action.broadcastBreakEvent(handIn));
 				return ActionResultType.SUCCESS;
+			} else if (heldItem instanceof FireChargeItem) {
+				worldIn.playSound(null, pos, SoundEvents.FIRECHARGE_USE, SoundCategory.BLOCKS, 1.0F, (MathUtils.RAND.nextFloat() - MathUtils.RAND.nextFloat()) * 0.2F + 1.0F);
+				worldIn.setBlock(pos, state.setValue(BlockStateProperties.LIT, Boolean.TRUE), 11);
+				if (!player.isCreative()) {
+					heldStack.shrink(1);
+				}
+				return ActionResultType.SUCCESS;
+			}
+		}
+
+		TileEntity tileEntity = worldIn.getBlockEntity(pos);
+		if (tileEntity instanceof StoveTileEntity) {
+			StoveTileEntity stoveEntity = (StoveTileEntity) tileEntity;
+			int stoveSlot = stoveEntity.getNextEmptySlot();
+			if (stoveSlot < 0 || stoveEntity.isStoveBlockedAbove()) {
+				return ActionResultType.PASS;
+			}
+			Optional<CampfireCookingRecipe> recipe = stoveEntity.getMatchingRecipe(new Inventory(heldStack), stoveSlot);
+			if (recipe.isPresent()) {
+				if (!worldIn.isClientSide && stoveEntity.addItem(player.abilities.instabuild ? heldStack.copy() : heldStack, recipe.get(), stoveSlot)) {
+					return ActionResultType.SUCCESS;
+				}
+				return ActionResultType.CONSUME;
 			}
 		}
 
@@ -79,64 +96,64 @@ public class StoveBlock extends HorizontalBlock
 	}
 
 	public void extinguish(BlockState state, World worldIn, BlockPos pos) {
-		worldIn.setBlockState(pos, state.with(LIT, false), 2);
-		double d0 = (double) pos.getX() + 0.5D;
-		double d1 = pos.getY();
-		double d2 = (double) pos.getZ() + 0.5D;
-		worldIn.playSound(d0, d1, d2, SoundEvents.BLOCK_FIRE_EXTINGUISH, SoundCategory.BLOCKS, 0.5F, 2.6F, false);
+		worldIn.setBlock(pos, state.setValue(LIT, false), 2);
+		double x = (double) pos.getX() + 0.5D;
+		double y = pos.getY();
+		double z = (double) pos.getZ() + 0.5D;
+		worldIn.playLocalSound(x, y, z, SoundEvents.FIRE_EXTINGUISH, SoundCategory.BLOCKS, 0.5F, 2.6F, false);
 	}
 
 	@Override
 	public BlockState getStateForPlacement(BlockItemUseContext context) {
-		return this.getDefaultState().with(HORIZONTAL_FACING, context.getPlacementHorizontalFacing().getOpposite()).with(LIT, true);
+		return this.defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite()).setValue(LIT, true);
 	}
 
 	@Override
-	public void onEntityWalk(World worldIn, BlockPos pos, Entity entityIn) {
-		boolean isLit = worldIn.getBlockState(pos).get(StoveBlock.LIT);
-		if (isLit && !entityIn.isImmuneToFire() && entityIn instanceof LivingEntity && !EnchantmentHelper.hasFrostWalker((LivingEntity) entityIn)) {
-			entityIn.attackEntityFrom(DamageSource.HOT_FLOOR, 1.0F);
+	public void stepOn(World worldIn, BlockPos pos, Entity entityIn) {
+		boolean isLit = worldIn.getBlockState(pos).getValue(StoveBlock.LIT);
+		if (isLit && !entityIn.fireImmune() && entityIn instanceof LivingEntity && !EnchantmentHelper.hasFrostWalker((LivingEntity) entityIn)) {
+			entityIn.hurt(DamageSource.HOT_FLOOR, 1.0F);
 		}
 
-		super.onEntityWalk(worldIn, pos, entityIn);
+		super.stepOn(worldIn, pos, entityIn);
 	}
 
 	@Override
-	public void onReplaced(BlockState state, World worldIn, BlockPos pos, BlockState newState, boolean isMoving) {
+	public void onRemove(BlockState state, World worldIn, BlockPos pos, BlockState newState, boolean isMoving) {
 		if (state.getBlock() != newState.getBlock()) {
-			TileEntity tile = worldIn.getTileEntity(pos);
-			if (tile instanceof StoveTileEntity) {
-				InventoryHelper.dropItems(worldIn, pos, ((StoveTileEntity) tile).getInventory());
+			TileEntity tileEntity = worldIn.getBlockEntity(pos);
+			if (tileEntity instanceof StoveTileEntity) {
+				ItemUtils.dropItems(worldIn, pos, ((StoveTileEntity) tileEntity).getInventory());
 			}
 
-			super.onReplaced(state, worldIn, pos, newState, isMoving);
+			super.onRemove(state, worldIn, pos, newState, isMoving);
 		}
 	}
 
 	@Override
-	protected void fillStateContainer(final StateContainer.Builder<Block, BlockState> builder) {
-		super.fillStateContainer(builder);
-		builder.add(LIT, HORIZONTAL_FACING);
+	protected void createBlockStateDefinition(final StateContainer.Builder<Block, BlockState> builder) {
+		super.createBlockStateDefinition(builder);
+		builder.add(LIT, FACING);
 	}
 
 	@OnlyIn(Dist.CLIENT)
 	public void animateTick(BlockState stateIn, World worldIn, BlockPos pos, Random rand) {
-		if (stateIn.get(CampfireBlock.LIT)) {
-			double d0 = (double) pos.getX() + 0.5D;
-			double d1 = pos.getY();
-			double d2 = (double) pos.getZ() + 0.5D;
+		if (stateIn.getValue(CampfireBlock.LIT)) {
+			double x = (double) pos.getX() + 0.5D;
+			double y = pos.getY();
+			double z = (double) pos.getZ() + 0.5D;
 			if (rand.nextInt(10) == 0) {
-				worldIn.playSound(d0, d1, d2, ModSounds.BLOCK_STOVE_CRACKLE.get(), SoundCategory.BLOCKS, 1.0F, 1.0F, false);
+				worldIn.playLocalSound(x, y, z, ModSounds.BLOCK_STOVE_CRACKLE.get(), SoundCategory.BLOCKS, 1.0F, 1.0F, false);
 			}
 
-			Direction direction = stateIn.get(HorizontalBlock.HORIZONTAL_FACING);
+			Direction direction = stateIn.getValue(HorizontalBlock.FACING);
 			Direction.Axis direction$axis = direction.getAxis();
-			double d4 = rand.nextDouble() * 0.6D - 0.3D;
-			double d5 = direction$axis == Direction.Axis.X ? (double) direction.getXOffset() * 0.52D : d4;
-			double d6 = rand.nextDouble() * 6.0D / 16.0D;
-			double d7 = direction$axis == Direction.Axis.Z ? (double) direction.getZOffset() * 0.52D : d4;
-			worldIn.addParticle(ParticleTypes.SMOKE, d0 + d5, d1 + d6, d2 + d7, 0.0D, 0.0D, 0.0D);
-			worldIn.addParticle(ParticleTypes.FLAME, d0 + d5, d1 + d6, d2 + d7, 0.0D, 0.0D, 0.0D);
+			double horizontalOffset = rand.nextDouble() * 0.6D - 0.3D;
+			double xOffset = direction$axis == Direction.Axis.X ? (double) direction.getStepX() * 0.52D : horizontalOffset;
+			double yOffset = rand.nextDouble() * 6.0D / 16.0D;
+			double zOffset = direction$axis == Direction.Axis.Z ? (double) direction.getStepZ() * 0.52D : horizontalOffset;
+			worldIn.addParticle(ParticleTypes.SMOKE, x + xOffset, y + yOffset, z + zOffset, 0.0D, 0.0D, 0.0D);
+			worldIn.addParticle(ParticleTypes.FLAME, x + xOffset, y + yOffset, z + zOffset, 0.0D, 0.0D, 0.0D);
 		}
 	}
 

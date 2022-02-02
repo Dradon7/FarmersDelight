@@ -1,7 +1,6 @@
 package vectorwing.farmersdelight.setup;
 
 import com.google.common.collect.ImmutableList;
-import net.minecraft.item.Items;
 import net.minecraftforge.common.ForgeConfigSpec;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -20,6 +19,8 @@ public class Configuration
 	public static ForgeConfigSpec.BooleanValue ENABLE_VANILLA_CROP_CRATES;
 	public static ForgeConfigSpec.BooleanValue FARMERS_BUY_FD_CROPS;
 	public static ForgeConfigSpec.DoubleValue RICH_SOIL_BOOST_CHANCE;
+	public static ForgeConfigSpec.DoubleValue CUTTING_BOARD_FORTUNE_BONUS;
+	public static ForgeConfigSpec.ConfigValue<List<? extends String>> CANVAS_SIGN_DARK_BACKGROUND_LIST;
 
 	public static final String CATEGORY_OVERRIDES = "overrides";
 	public static ForgeConfigSpec.BooleanValue COMFORT_FOOD_TAG_EFFECT;
@@ -54,6 +55,7 @@ public class Configuration
 	public static final String CATEGORY_CLIENT = "client";
 
 	public static ForgeConfigSpec.BooleanValue NOURISHED_HUNGER_OVERLAY;
+	public static ForgeConfigSpec.BooleanValue FOOD_EFFECT_TOOLTIP;
 
 	static {
 		ForgeConfigSpec.Builder COMMON_BUILDER = new ForgeConfigSpec.Builder();
@@ -63,12 +65,17 @@ public class Configuration
 				.define("enableVanillaCropCrates", true);
 		FARMERS_BUY_FD_CROPS = COMMON_BUILDER.comment("Should Novice and Apprentice Farmers buy this mod's crops? (May reduce chances of other trades appearing)")
 				.define("farmersBuyFDCrops", true);
-		RICH_SOIL_BOOST_CHANCE = COMMON_BUILDER.comment("How often (in percentage) should Rich Soil succeed in boosting a plant's growth at each random tick? Setting it to 0.0 disables boosting.")
+		RICH_SOIL_BOOST_CHANCE = COMMON_BUILDER.comment("How often (in percentage) should Rich Soil succeed in boosting a plant's growth at each random tick? Set it to 0.0 to disable this.")
 				.defineInRange("richSoilBoostChance", 0.2, 0.0, 1.0);
+		CUTTING_BOARD_FORTUNE_BONUS = COMMON_BUILDER.comment("How much of a bonus (in percentage) should each level of Fortune grant to Cutting Board chances? Set it to 0.0 to disable this.")
+				.defineInRange("cuttingBoardFortuneBonus", 0.1, 0.0, 1.0);
+		CANVAS_SIGN_DARK_BACKGROUND_LIST = COMMON_BUILDER.comment("A list of dye colors that, when used as the background of a Canvas Sign, should default to white text when placed.",
+						"Dyes: [\"white\", \"orange\", \"magenta\", \"light_blue\", \"yellow\", \"lime\", \"pink\", \"gray\", \"light_gray\", \"cyan\", \"purple\", \"blue\", \"brown\", \"green\", \"red\", \"black\"]")
+				.defineList("canvasSignDarkBackgroundList", ImmutableList.of("gray", "purple", "blue", "brown", "green", "red", "black"), obj -> true);
 		COMMON_BUILDER.pop();
 
 		COMMON_BUILDER.comment("Vanilla item overrides").push(CATEGORY_OVERRIDES);
-		COMFORT_FOOD_TAG_EFFECT = COMMON_BUILDER.comment("Should items inside the tag 'farmersdelight:comfort_foods' grant 5 minutes of Comfort when eaten? (defaults to vanilla SoupItems)")
+		COMFORT_FOOD_TAG_EFFECT = COMMON_BUILDER.comment("Should items inside the tag 'farmersdelight:comfort_foods' grant 2 minutes of Comfort when eaten? (defaults to vanilla SoupItems)")
 				.define("comfortFoodTagEffect", true);
 		RABBIT_STEW_JUMP_BOOST = COMMON_BUILDER.comment("Should Rabbit Stew grant users the jumping prowess of a rabbit when eaten?")
 				.define("rabbitStewJumpBoost", true);
@@ -150,8 +157,10 @@ public class Configuration
 		ForgeConfigSpec.Builder CLIENT_BUILDER = new ForgeConfigSpec.Builder();
 
 		CLIENT_BUILDER.comment("Client settings").push(CATEGORY_CLIENT);
-		NOURISHED_HUNGER_OVERLAY = CLIENT_BUILDER.comment("Should the hunger bar have a gilded overlay when the player is Nourished?")
-				.define("nourishedHungerOverlay", true);
+		NOURISHED_HUNGER_OVERLAY = CLIENT_BUILDER.comment("Should the hunger bar have a gilded overlay when the player has the Nourishment effect?")
+				.define("nourishmentHungerOverlay", true);
+		FOOD_EFFECT_TOOLTIP = CLIENT_BUILDER.comment("Should food tooltips display which effects they provide?")
+				.define("foodEffectTooltip", true);
 		CLIENT_BUILDER.pop();
 
 		CLIENT_CONFIG = CLIENT_BUILDER.build();

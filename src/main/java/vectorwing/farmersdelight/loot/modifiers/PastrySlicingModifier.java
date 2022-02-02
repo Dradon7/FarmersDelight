@@ -9,14 +9,12 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.loot.LootContext;
 import net.minecraft.loot.LootParameters;
 import net.minecraft.loot.conditions.ILootCondition;
-import net.minecraft.state.properties.BlockStateProperties;
 import net.minecraft.util.JSONUtils;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.common.loot.GlobalLootModifierSerializer;
 import net.minecraftforge.common.loot.LootModifier;
 import net.minecraftforge.registries.ForgeRegistries;
 import vectorwing.farmersdelight.blocks.PieBlock;
-import vectorwing.farmersdelight.registry.ModItems;
 
 import javax.annotation.Nonnull;
 import java.util.List;
@@ -41,14 +39,14 @@ public class PastrySlicingModifier extends LootModifier
 	@Nonnull
 	@Override
 	protected List<ItemStack> doApply(List<ItemStack> generatedLoot, LootContext context) {
-		BlockState state = context.get(LootParameters.BLOCK_STATE);
+		BlockState state = context.getParamOrNull(LootParameters.BLOCK_STATE);
 		if (state != null) {
 			Block targetBlock = state.getBlock();
 			if (targetBlock instanceof CakeBlock) {
-				int bites = state.get(CakeBlock.BITES);
+				int bites = state.getValue(CakeBlock.BITES);
 				generatedLoot.add(new ItemStack(pastrySlice, MAX_CAKE_BITES - bites));
 			} else if (targetBlock instanceof PieBlock) {
-				int bites = state.get(PieBlock.BITES);
+				int bites = state.getValue(PieBlock.BITES);
 				generatedLoot.add(new ItemStack(pastrySlice, MAX_PIE_BITES - bites));
 			}
 		}
@@ -60,7 +58,7 @@ public class PastrySlicingModifier extends LootModifier
 	{
 		@Override
 		public PastrySlicingModifier read(ResourceLocation location, JsonObject object, ILootCondition[] conditions) {
-			Item pastrySlice = ForgeRegistries.ITEMS.getValue(new ResourceLocation((JSONUtils.getString(object, "slice"))));
+			Item pastrySlice = ForgeRegistries.ITEMS.getValue(new ResourceLocation((JSONUtils.getAsString(object, "slice"))));
 			return new PastrySlicingModifier(conditions, pastrySlice);
 		}
 

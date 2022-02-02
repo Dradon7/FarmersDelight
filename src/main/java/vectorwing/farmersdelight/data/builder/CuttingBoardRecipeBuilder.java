@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import mezz.jei.api.MethodsReturnNonnullByDefault;
 import net.minecraft.data.IFinishedRecipe;
 import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
 import net.minecraft.item.crafting.IRecipeSerializer;
 import net.minecraft.item.crafting.Ingredient;
 import net.minecraft.util.IItemProvider;
@@ -12,10 +13,13 @@ import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.registries.ForgeRegistries;
 import vectorwing.farmersdelight.FarmersDelight;
 import vectorwing.farmersdelight.crafting.CuttingBoardRecipe;
+import vectorwing.farmersdelight.crafting.ingredients.ChanceResult;
 
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -23,13 +27,13 @@ import java.util.function.Consumer;
 @ParametersAreNonnullByDefault
 public class CuttingBoardRecipeBuilder
 {
-	private final Map<Item, Integer> results = new LinkedHashMap<>(4);
+	private final List<ChanceResult> results = new ArrayList<>(4);
 	private final Ingredient ingredient;
 	private final Ingredient tool;
 	private String soundEventID;
 
-	private CuttingBoardRecipeBuilder(Ingredient ingredient, Ingredient tool, IItemProvider mainResult, int count) {
-		this.results.put(mainResult.asItem(), count);
+	private CuttingBoardRecipeBuilder(Ingredient ingredient, Ingredient tool, IItemProvider mainResult, int count, float chance) {
+		this.results.add(new ChanceResult(new ItemStack(mainResult.asItem(), count), chance));
 		this.ingredient = ingredient;
 		this.tool = tool;
 	}
@@ -38,14 +42,21 @@ public class CuttingBoardRecipeBuilder
 	 * Creates a new builder for a cutting recipe.
 	 */
 	public static CuttingBoardRecipeBuilder cuttingRecipe(Ingredient ingredient, Ingredient tool, IItemProvider mainResult, int count) {
-		return new CuttingBoardRecipeBuilder(ingredient, tool, mainResult, count);
+		return new CuttingBoardRecipeBuilder(ingredient, tool, mainResult, count, 1);
+	}
+
+	/**
+	 * Creates a new builder for a cutting recipe, providing a chance for the main output to drop.
+	 */
+	public static CuttingBoardRecipeBuilder cuttingRecipe(Ingredient ingredient, Ingredient tool, IItemProvider mainResult, int count, int chance) {
+		return new CuttingBoardRecipeBuilder(ingredient, tool, mainResult, count, chance);
 	}
 
 	/**
 	 * Creates a new builder for a cutting recipe, returning 1 unit of the result.
 	 */
 	public static CuttingBoardRecipeBuilder cuttingRecipe(Ingredient ingredient, Ingredient tool, IItemProvider mainResult) {
-		return new CuttingBoardRecipeBuilder(ingredient, tool, mainResult, 1);
+		return new CuttingBoardRecipeBuilder(ingredient, tool, mainResult, 1, 1);
 	}
 
 	public CuttingBoardRecipeBuilder addResult(IItemProvider result) {
@@ -53,7 +64,16 @@ public class CuttingBoardRecipeBuilder
 	}
 
 	public CuttingBoardRecipeBuilder addResult(IItemProvider result, int count) {
-		this.results.put(result.asItem(), count);
+		this.results.add(new ChanceResult(new ItemStack(result.asItem(), count), 1));
+		return this;
+	}
+
+	public CuttingBoardRecipeBuilder addResultWithChance(IItemProvider result, float chance) {
+		return this.addResultWithChance(result, chance, 1);
+	}
+
+	public CuttingBoardRecipeBuilder addResultWithChance(IItemProvider result, float chance, int count) {
+		this.results.add(new ChanceResult(new ItemStack(result.asItem(), count), chance));
 		return this;
 	}
 
@@ -63,12 +83,12 @@ public class CuttingBoardRecipeBuilder
 	}
 
 	public void build(Consumer<IFinishedRecipe> consumerIn) {
-		ResourceLocation location = ForgeRegistries.ITEMS.getKey(this.ingredient.getMatchingStacks()[0].getItem());
+		ResourceLocation location = ForgeRegistries.ITEMS.getKey(this.ingredient.getItems()[0].getItem());
 		this.build(consumerIn, FarmersDelight.MODID + ":cutting/" + location.getPath());
 	}
 
 	public void build(Consumer<IFinishedRecipe> consumerIn, String save) {
-		ResourceLocation resourcelocation = ForgeRegistries.ITEMS.getKey(this.ingredient.getMatchingStacks()[0].getItem());
+		ResourceLocation resourcelocation = ForgeRegistries.ITEMS.getKey(this.ingredient.getItems()[0].getItem());
 		if ((new ResourceLocation(save)).equals(resourcelocation)) {
 			throw new IllegalStateException("Cutting Recipe " + save + " should remove its 'save' argument");
 		} else {
@@ -85,10 +105,10 @@ public class CuttingBoardRecipeBuilder
 		private final ResourceLocation id;
 		private final Ingredient ingredient;
 		private final Ingredient tool;
-		private final Map<Item, Integer> results;
+		private final List<ChanceResult> results;
 		private final String soundEventID;
 
-		public Result(ResourceLocation idIn, Ingredient ingredientIn,  Ingredient toolIn, Map<Item, Integer> resultsIn, String soundEventIDIn) {
+		public Result(ResourceLocation idIn, Ingredient ingredientIn,  Ingredient toolIn, List<ChanceResult> resultsIn, String soundEventIDIn) {
 			this.id = idIn;
 			this.ingredient = ingredientIn;
 			this.tool = toolIn;
@@ -97,19 +117,22 @@ public class CuttingBoardRecipeBuilder
 		}
 
 		@Override
-		public void serialize(JsonObject json) {
+		public void serializeRecipeData(JsonObject json) {
 			JsonArray arrayIngredients = new JsonArray();
-			arrayIngredients.add(this.ingredient.serialize());
+			arrayIngredients.add(this.ingredient.toJson());
 			json.add("ingredients", arrayIngredients);
 
-			json.add("tool", this.tool.serialize());
+			json.add("tool", this.tool.toJson());
 
 			JsonArray arrayResults = new JsonArray();
-			for (Map.Entry<Item, Integer> result : this.results.entrySet()) {
+			for (ChanceResult result : this.results) {
 				JsonObject jsonobject = new JsonObject();
-				jsonobject.addProperty("item", ForgeRegistries.ITEMS.getKey(result.getKey()).toString());
-				if (result.getValue() > 1) {
-					jsonobject.addProperty("count", result.getValue());
+				jsonobject.addProperty("item", ForgeRegistries.ITEMS.getKey(result.getStack().getItem()).toString());
+				if (result.getStack().getCount() > 1) {
+					jsonobject.addProperty("count", result.getStack().getCount());
+				}
+				if (result.getChance() < 1) {
+					jsonobject.addProperty("chance", result.getChance());
 				}
 				arrayResults.add(jsonobject);
 			}
@@ -120,24 +143,24 @@ public class CuttingBoardRecipeBuilder
 		}
 
 		@Override
-		public ResourceLocation getID() {
+		public ResourceLocation getId() {
 			return this.id;
 		}
 
 		@Override
-		public IRecipeSerializer<?> getSerializer() {
+		public IRecipeSerializer<?> getType() {
 			return CuttingBoardRecipe.SERIALIZER;
 		}
 
 		@Nullable
 		@Override
-		public JsonObject getAdvancementJson() {
+		public JsonObject serializeAdvancement() {
 			return null;
 		}
 
 		@Nullable
 		@Override
-		public ResourceLocation getAdvancementID() {
+		public ResourceLocation getAdvancementId() {
 			return null;
 		}
 	}

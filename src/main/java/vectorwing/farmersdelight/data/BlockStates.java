@@ -1,5 +1,6 @@
 package vectorwing.farmersdelight.data;
 
+import com.google.common.collect.Sets;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.DoublePlantBlock;
@@ -17,12 +18,15 @@ import net.minecraftforge.client.model.generators.ModelFile;
 import net.minecraftforge.common.data.ExistingFileHelper;
 import vectorwing.farmersdelight.FarmersDelight;
 import vectorwing.farmersdelight.blocks.*;
+import vectorwing.farmersdelight.blocks.FeastBlock;
+import vectorwing.farmersdelight.blocks.PieBlock;
 import vectorwing.farmersdelight.registry.ModBlocks;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Function;
 
 public class BlockStates extends BlockStateProvider
@@ -54,6 +58,46 @@ public class BlockStates extends BlockStateProvider
 		this.simpleBlock(ModBlocks.RICH_SOIL.get(), cubeRandomRotation(ModBlocks.RICH_SOIL.get(), ""));
 		this.simpleBlock(ModBlocks.SAFETY_NET.get(), existingModel(ModBlocks.SAFETY_NET.get()));
 
+		Set<Block> canvasSigns = Sets.newHashSet(
+				ModBlocks.CANVAS_SIGN.get(),
+				ModBlocks.WHITE_CANVAS_SIGN.get(),
+				ModBlocks.ORANGE_CANVAS_SIGN.get(),
+				ModBlocks.MAGENTA_CANVAS_SIGN.get(),
+				ModBlocks.LIGHT_BLUE_CANVAS_SIGN.get(),
+				ModBlocks.YELLOW_CANVAS_SIGN.get(),
+				ModBlocks.LIME_CANVAS_SIGN.get(),
+				ModBlocks.PINK_CANVAS_SIGN.get(),
+				ModBlocks.GRAY_CANVAS_SIGN.get(),
+				ModBlocks.LIGHT_GRAY_CANVAS_SIGN.get(),
+				ModBlocks.CYAN_CANVAS_SIGN.get(),
+				ModBlocks.PURPLE_CANVAS_SIGN.get(),
+				ModBlocks.BLUE_CANVAS_SIGN.get(),
+				ModBlocks.BROWN_CANVAS_SIGN.get(),
+				ModBlocks.GREEN_CANVAS_SIGN.get(),
+				ModBlocks.RED_CANVAS_SIGN.get(),
+				ModBlocks.BLACK_CANVAS_SIGN.get(),
+				ModBlocks.CANVAS_WALL_SIGN.get(),
+				ModBlocks.WHITE_CANVAS_WALL_SIGN.get(),
+				ModBlocks.ORANGE_CANVAS_WALL_SIGN.get(),
+				ModBlocks.MAGENTA_CANVAS_WALL_SIGN.get(),
+				ModBlocks.LIGHT_BLUE_CANVAS_WALL_SIGN.get(),
+				ModBlocks.YELLOW_CANVAS_WALL_SIGN.get(),
+				ModBlocks.LIME_CANVAS_WALL_SIGN.get(),
+				ModBlocks.PINK_CANVAS_WALL_SIGN.get(),
+				ModBlocks.GRAY_CANVAS_WALL_SIGN.get(),
+				ModBlocks.LIGHT_GRAY_CANVAS_WALL_SIGN.get(),
+				ModBlocks.CYAN_CANVAS_WALL_SIGN.get(),
+				ModBlocks.PURPLE_CANVAS_WALL_SIGN.get(),
+				ModBlocks.BLUE_CANVAS_WALL_SIGN.get(),
+				ModBlocks.BROWN_CANVAS_WALL_SIGN.get(),
+				ModBlocks.GREEN_CANVAS_WALL_SIGN.get(),
+				ModBlocks.RED_CANVAS_WALL_SIGN.get(),
+				ModBlocks.BLACK_CANVAS_WALL_SIGN.get());
+
+		for (Block sign : canvasSigns) {
+			this.simpleBlock(sign, existingModel(ModBlocks.CANVAS_SIGN.get()));
+		}
+
 		String riceBag = blockName(ModBlocks.RICE_BAG.get());
 		this.simpleBlock(ModBlocks.RICE_BAG.get(), models().withExistingParent(riceBag, "cube")
 				.texture("particle", resourceBlock(riceBag + "_top"))
@@ -75,7 +119,7 @@ public class BlockStates extends BlockStateProvider
 		this.horizontalBlock(ModBlocks.HALF_TATAMI_MAT.get(), existingModel("tatami_mat_half"));
 		this.horizontalBlock(ModBlocks.STOVE.get(), state -> {
 			String name = blockName(ModBlocks.STOVE.get());
-			String suffix = state.get(StoveBlock.LIT) ? "_on" : "";
+			String suffix = state.getValue(StoveBlock.LIT) ? "_on" : "";
 
 			return models().orientableWithBottom(name + suffix,
 					resourceBlock(name + "_side"),
@@ -135,11 +179,11 @@ public class BlockStates extends BlockStateProvider
 	public void customDirectionalBlock(Block block, Function<BlockState, ModelFile> modelFunc, Property<?>... ignored) {
 		getVariantBuilder(block)
 				.forAllStatesExcept(state -> {
-					Direction dir = state.get(BlockStateProperties.FACING);
+					Direction dir = state.getValue(BlockStateProperties.FACING);
 					return ConfiguredModel.builder()
 							.modelFile(modelFunc.apply(state))
 							.rotationX(dir == Direction.DOWN ? 180 : dir.getAxis().isHorizontal() ? 90 : 0)
-							.rotationY(dir.getAxis().isVertical() ? 0 : ((int) dir.getHorizontalAngle() + DEFAULT_ANGLE_OFFSET) % 360)
+							.rotationY(dir.getAxis().isVertical() ? 0 : ((int) dir.toYRot() + DEFAULT_ANGLE_OFFSET) % 360)
 							.build();
 				}, ignored);
 	}
@@ -148,14 +192,14 @@ public class BlockStates extends BlockStateProvider
 		getVariantBuilder(block)
 				.forAllStatesExcept(state -> ConfiguredModel.builder()
 						.modelFile(modelFunc.apply(state))
-						.rotationY(((int) state.get(BlockStateProperties.HORIZONTAL_FACING).getHorizontalAngle() + DEFAULT_ANGLE_OFFSET) % 360)
+						.rotationY(((int) state.getValue(BlockStateProperties.HORIZONTAL_FACING).toYRot() + DEFAULT_ANGLE_OFFSET) % 360)
 						.build(), ignored);
 	}
 
 	public void stageBlock(Block block, IntegerProperty ageProperty, Property<?>... ignored) {
 		getVariantBuilder(block)
 				.forAllStatesExcept(state -> {
-					int ageSuffix = state.get(ageProperty);
+					int ageSuffix = state.getValue(ageProperty);
 					String stageName = blockName(block) + "_stage" + ageSuffix;
 					return ConfiguredModel.builder()
 							.modelFile(models().cross(stageName, resourceBlock(stageName))).build();
@@ -166,7 +210,7 @@ public class BlockStates extends BlockStateProvider
 	public void customStageBlock(Block block, @Nullable ResourceLocation parent, String textureKey, IntegerProperty ageProperty, List<Integer> suffixes, Property<?>... ignored) {
 		getVariantBuilder(block)
 				.forAllStatesExcept(state -> {
-					int ageSuffix = state.get(ageProperty);
+					int ageSuffix = state.getValue(ageProperty);
 					String stageName = blockName(block) + "_stage";
 					stageName += suffixes.isEmpty() ? ageSuffix : suffixes.get(Math.min(suffixes.size(), ageSuffix));
 					if (parent == null) {
@@ -193,7 +237,7 @@ public class BlockStates extends BlockStateProvider
 
 	public void pantryBlock(Block block, String woodType) {
 		this.horizontalBlock(block, state -> {
-			String suffix = state.get(PantryBlock.OPEN) ? "_open" : "";
+			String suffix = state.getValue(PantryBlock.OPEN) ? "_open" : "";
 			return models().orientable(blockName(block) + suffix,
 					resourceBlock(woodType + "_pantry_side"),
 					resourceBlock(woodType + "_pantry_front" + suffix),
@@ -204,7 +248,7 @@ public class BlockStates extends BlockStateProvider
 	public void feastBlock(FeastBlock block) {
 		getVariantBuilder(block)
 				.forAllStates(state -> {
-					int servings = state.get(FeastBlock.SERVINGS);
+					int servings = state.getValue(FeastBlock.SERVINGS);
 
 					String suffix = "_stage" + (block.getMaxServings() - servings);
 
@@ -214,7 +258,7 @@ public class BlockStates extends BlockStateProvider
 
 					return ConfiguredModel.builder()
 							.modelFile(existingModel(blockName(block) + suffix))
-							.rotationY(((int) state.get(FeastBlock.FACING).getHorizontalAngle() + DEFAULT_ANGLE_OFFSET) % 360)
+							.rotationY(((int) state.getValue(FeastBlock.FACING).toYRot() + DEFAULT_ANGLE_OFFSET) % 360)
 							.build();
 				});
 	}
@@ -230,11 +274,11 @@ public class BlockStates extends BlockStateProvider
 	public void pieBlock(Block block) {
 		getVariantBuilder(block)
 				.forAllStates(state -> {
-							int bites = state.get(PieBlock.BITES);
+							int bites = state.getValue(PieBlock.BITES);
 							String suffix = bites > 0 ? "_slice" + bites : "";
 							return ConfiguredModel.builder()
 									.modelFile(existingModel(blockName(block) + suffix))
-									.rotationY(((int) state.get(PieBlock.FACING).getHorizontalAngle() + DEFAULT_ANGLE_OFFSET) % 360)
+									.rotationY(((int) state.getValue(PieBlock.FACING).toYRot() + DEFAULT_ANGLE_OFFSET) % 360)
 									.build();
 						}
 				);
